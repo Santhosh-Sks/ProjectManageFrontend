@@ -1,0 +1,285 @@
+import React, { useState, useEffect } from 'react';
+import { useParams } from 'react-router-dom';
+import { projectService } from '../services/projectService';
+import { taskService } from '../services/taskService';
+import LoadingSpinner from '../components/LoadingSpinner';
+import ConfirmationDialog from '../components/ConfirmationDialog';
+
+const Project = () => {
+    const { id } = useParams();
+    const [project, setProject] = useState(null);
+    const [tasks, setTasks] = useState([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState(null);
+    const [newTask, setNewTask] = useState({
+        title: '',
+        description: '',
+        assignedTo: '',
+        status: 'TODO'
+    });
+    const [newMember, setNewMember] = useState('');
+    const [newComment, setNewComment] = useState('');
+    const [deleteDialog, setDeleteDialog] = useState({
+        isOpen: false,
+        taskId: null
+    });
+
+    useEffect(() => {
+        loadProject();
+        loadTasks();
+    }, [id]);
+
+    const loadProject = async () => {
+        try {
+            setLoading(true);
+            const data = await projectService.getProjectById(id);
+            setProject(data);
+            setError(null);
+        } catch (err) {
+            setError('Failed to load project details. Please try again.');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const loadTasks = async () => {
+        try {
+            const data = await taskService.getTasksByProjectId(id);
+            setTasks(data);
+        } catch (err) {
+            setError('Failed to load tasks. Please try again.');
+        }
+    };
+
+    const handleCreateTask = async (e) => {
+        e.preventDefault();
+        try {
+            setLoading(true);
+            await taskService.createTask({
+                ...newTask,
+                projectId: id
+            });
+            setNewTask({
+                title: '',
+                description: '',
+                assignedTo: '',
+                status: 'TODO'
+            });
+            loadTasks();
+        } catch (err) {
+            setError('Failed to create task. Please try again.');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleAddMember = async (e) => {
+        e.preventDefault();
+        try {
+            setLoading(true);
+            await projectService.addMemberToProject(id, newMember);
+            setNewMember('');
+            loadProject();
+        } catch (err) {
+            setError('Failed to add member. Please try again.');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleUpdateTaskStatus = async (taskId, newStatus) => {
+        try {
+            setLoading(true);
+            await taskService.updateTask(taskId, { status: newStatus });
+            loadTasks();
+        } catch (err) {
+            setError('Failed to update task status. Please try again.');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleDeleteTask = async (taskId) => {
+        try {
+            setLoading(true);
+            await taskService.deleteTask(taskId);
+            loadTasks();
+        } catch (err) {
+            setError('Failed to delete task. Please try again.');
+        } finally {
+            setLoading(false);
+            setDeleteDialog({ isOpen: false, taskId: null });
+        }
+    };
+
+    const handleAddComment = async (taskId) => {
+        if (!newComment.trim()) return;
+        try {
+            setLoading(true);
+            await taskService.addComment(taskId, newComment);
+            setNewComment('');
+            loadTasks();
+        } catch (err) {
+            setError('Failed to add comment. Please try again.');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    if (loading && !project) {
+        return <LoadingSpinner />;
+    }
+
+    if (!project) {
+        return <div className="error-message">Project not found</div>;
+    }
+
+    return (
+        <div className="project-details">
+            {error && (
+                <div className="error-message">
+                    {error}
+                    <button onClick={() => setError(null)}>Dismiss</button>
+                </div>
+            )}
+
+            <div className="project-header">
+                <h1>{project.title}</h1>
+                <p>{project.description}</p>
+                <div className="project-meta">
+                    <span className="category">{project.category}</span>
+                    <div className="technology-tags">
+                        {project.technologies.map((tech, index) => (
+                            <span key={index} className="tech-tag">{tech}</span>
+                        ))}
+                    </div>
+                </div>
+            </div>
+
+            <div className="project-sections">
+                <div className="members-section">
+                    <h2>Team Members</h2>
+                    <form onSubmit={handleAddMember} className="add-member-form">
+                        <input
+                            type="email"
+                            value={newMember}
+                            onChange={(e) => setNewMember(e.target.value)}
+                            placeholder="Enter member's email"
+                            required
+                        />
+                        <button type="submit" disabled={loading}>
+                            {loading ? 'Adding...' : 'Add Member'}
+                        </button>
+                    </form>
+                    <div className="members-list">
+                        {project.members.map((member, index) => (
+                            <div key={index} className="member-item">
+                                {member}
+                            </div>
+                        ))}
+                    </div>
+                </div>
+
+                <div className="tasks-section">
+                    <h2>Tasks</h2>
+                    <form onSubmit={handleCreateTask} className="create-task-form">
+                        <div className="form-group">
+                            <input
+                                type="text"
+                                value={newTask.title}
+                                onChange={(e) => setNewTask(prev => ({ ...prev, title: e.target.value }))}
+                                placeholder="Task title"
+                                required
+                            />
+                        </div>
+                        <div className="form-group">
+                            <textarea
+                                value={newTask.description}
+                                onChange={(e) => setNewTask(prev => ({ ...prev, description: e.target.value }))}
+                                placeholder="Task description"
+                                required
+                            />
+                        </div>
+                        <div className="form-group">
+                            <input
+                                type="email"
+                                value={newTask.assignedTo}
+                                onChange={(e) => setNewTask(prev => ({ ...prev, assignedTo: e.target.value }))}
+                                placeholder="Assign to (email)"
+                                required
+                            />
+                        </div>
+                        <button type="submit" disabled={loading}>
+                            {loading ? 'Creating...' : 'Create Task'}
+                        </button>
+                    </form>
+
+                    <div className="tasks-list">
+                        {tasks.map(task => (
+                            <div key={task.id} className="task-card">
+                                <div className="task-header">
+                                    <h3>{task.title}</h3>
+                                    <select
+                                        value={task.status}
+                                        onChange={(e) => handleUpdateTaskStatus(task.id, e.target.value)}
+                                        disabled={loading}
+                                    >
+                                        <option value="TODO">To Do</option>
+                                        <option value="IN_PROGRESS">In Progress</option>
+                                        <option value="DONE">Done</option>
+                                    </select>
+                                </div>
+                                <p>{task.description}</p>
+                                <div className="task-meta">
+                                    <span>Assigned to: {task.assignedTo}</span>
+                                    <span>Created: {new Date(task.createdAt).toLocaleDateString()}</span>
+                                </div>
+                                <div className="task-comments">
+                                    <h4>Comments</h4>
+                                    <ul>
+                                        {task.comments.map((comment, index) => (
+                                            <li key={index}>
+                                                <p>{comment.text}</p>
+                                                <small>{new Date(comment.createdAt).toLocaleString()}</small>
+                                            </li>
+                                        ))}
+                                    </ul>
+                                    <div className="add-comment">
+                                        <input
+                                            type="text"
+                                            value={newComment}
+                                            onChange={(e) => setNewComment(e.target.value)}
+                                            placeholder="Add a comment"
+                                        />
+                                        <button
+                                            onClick={() => handleAddComment(task.id)}
+                                            disabled={loading || !newComment.trim()}
+                                        >
+                                            Add Comment
+                                        </button>
+                                    </div>
+                                </div>
+                                <button
+                                    className="delete-button"
+                                    onClick={() => setDeleteDialog({ isOpen: true, taskId: task.id })}
+                                >
+                                    Delete Task
+                                </button>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            </div>
+
+            <ConfirmationDialog
+                isOpen={deleteDialog.isOpen}
+                onClose={() => setDeleteDialog({ isOpen: false, taskId: null })}
+                onConfirm={() => handleDeleteTask(deleteDialog.taskId)}
+                title="Delete Task"
+                message="Are you sure you want to delete this task? This action cannot be undone."
+            />
+        </div>
+    );
+};
+
+export default Project; 

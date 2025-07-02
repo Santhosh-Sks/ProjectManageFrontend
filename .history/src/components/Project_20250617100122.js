@@ -1,0 +1,154 @@
+import React, { useState, useEffect } from 'react';
+import { projectService } from '../services/projectService';
+import { taskService } from '../services/taskService';
+
+const Project = ({ projectId }) => {
+    const [project, setProject] = useState(null);
+    const [tasks, setTasks] = useState([]);
+    const [newTask, setNewTask] = useState({
+        title: '',
+        description: '',
+        status: 'TODO',
+        assignedTo: ''
+    });
+    const [newMember, setNewMember] = useState('');
+
+    useEffect(() => {
+        loadProject();
+        loadTasks();
+    }, [projectId]);
+
+    const loadProject = async () => {
+        try {
+            const data = await projectService.getProjectById(projectId);
+            setProject(data);
+        } catch (error) {
+            console.error('Error loading project:', error);
+        }
+    };
+
+    const loadTasks = async () => {
+        try {
+            const data = await taskService.getTasksByProjectId(projectId);
+            setTasks(data);
+        } catch (error) {
+            console.error('Error loading tasks:', error);
+        }
+    };
+
+    const handleCreateTask = async (e) => {
+        e.preventDefault();
+        try {
+            const task = {
+                ...newTask,
+                projectId
+            };
+            await taskService.createTask(task);
+            setNewTask({
+                title: '',
+                description: '',
+                status: 'TODO',
+                assignedTo: ''
+            });
+            loadTasks();
+        } catch (error) {
+            console.error('Error creating task:', error);
+        }
+    };
+
+    const handleAddMember = async (e) => {
+        e.preventDefault();
+        try {
+            await projectService.addMemberToProject(projectId, newMember);
+            setNewMember('');
+            loadProject();
+        } catch (error) {
+            console.error('Error adding member:', error);
+        }
+    };
+
+    if (!project) return <div>Loading...</div>;
+
+    return (
+        <div className="project-container">
+            <h1>{project.title}</h1>
+            <p>{project.description}</p>
+            
+            <div className="project-details">
+                <h3>Category: {project.category}</h3>
+                <h3>Technologies:</h3>
+                <ul>
+                    {project.technologies.map((tech, index) => (
+                        <li key={index}>{tech}</li>
+                    ))}
+                </ul>
+            </div>
+
+            <div className="members-section">
+                <h3>Members</h3>
+                <ul>
+                    {project.members.map((member, index) => (
+                        <li key={index}>{member}</li>
+                    ))}
+                </ul>
+                <form onSubmit={handleAddMember}>
+                    <input
+                        type="email"
+                        value={newMember}
+                        onChange={(e) => setNewMember(e.target.value)}
+                        placeholder="Enter member email"
+                        required
+                    />
+                    <button type="submit">Add Member</button>
+                </form>
+            </div>
+
+            <div className="tasks-section">
+                <h3>Tasks</h3>
+                <form onSubmit={handleCreateTask}>
+                    <input
+                        type="text"
+                        value={newTask.title}
+                        onChange={(e) => setNewTask({...newTask, title: e.target.value})}
+                        placeholder="Task title"
+                        required
+                    />
+                    <textarea
+                        value={newTask.description}
+                        onChange={(e) => setNewTask({...newTask, description: e.target.value})}
+                        placeholder="Task description"
+                    />
+                    <select
+                        value={newTask.status}
+                        onChange={(e) => setNewTask({...newTask, status: e.target.value})}
+                    >
+                        <option value="TODO">To Do</option>
+                        <option value="IN_PROGRESS">In Progress</option>
+                        <option value="DONE">Done</option>
+                    </select>
+                    <input
+                        type="text"
+                        value={newTask.assignedTo}
+                        onChange={(e) => setNewTask({...newTask, assignedTo: e.target.value})}
+                        placeholder="Assigned to (email)"
+                        required
+                    />
+                    <button type="submit">Create Task</button>
+                </form>
+
+                <div className="tasks-list">
+                    {tasks.map((task) => (
+                        <div key={task.id} className="task-card">
+                            <h4>{task.title}</h4>
+                            <p>{task.description}</p>
+                            <p>Status: {task.status}</p>
+                            <p>Assigned to: {task.assignedTo}</p>
+                        </div>
+                    ))}
+                </div>
+            </div>
+        </div>
+    );
+};
+
+export default Project; 
