@@ -48,14 +48,6 @@ const Project = () => {
         loadTasks();
     }, [loadProject, loadTasks]);
 
-    // Auto-refresh tasks every 10s
-    useEffect(() => {
-        const id = setInterval(() => {
-            loadTasks();
-        }, 10000);
-        return () => clearInterval(id);
-    }, [loadTasks]);
-
     const handleCreateTask = async (e) => {
         e.preventDefault();
         try {
@@ -97,14 +89,10 @@ const Project = () => {
     };
 
     const handleUpdateTaskStatus = async (taskId, newStatus) => {
-        const prev = tasks;
-        // Optimistic UI
-        setTasks(tasks.map(t => (t.id === taskId ? { ...t, status: newStatus } : t)));
         try {
             await taskService.updateTaskStatus(taskId, newStatus);
+            loadTasks();
         } catch (error) {
-            // Rollback
-            setTasks(prev);
             console.error('Error updating task status:', error);
         }
     };

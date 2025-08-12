@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import axios from 'axios';
-import { taskService } from '../services/taskService';
 import { toast } from 'react-hot-toast'; // Assuming you have toast for notifications
 
 const API_BASE = process.env.REACT_APP_API_URL; // Use a placeholder or your actual API URL
@@ -20,35 +19,16 @@ const TaskList = ({ projectId }) => {
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
     const [taskToDelete, setTaskToDelete] = useState(null);
 
-    const mergePreserveDefined = (original, update) => {
-        const result = { ...original };
-        Object.entries(update || {}).forEach(([key, value]) => {
-            if (value !== undefined) {
-                result[key] = value;
-            }
-        });
-        return result;
-    };
-
     // Fetch tasks from the API when the component mounts or projectId changes
     useEffect(() => {
         fetchTasks();
     }, [projectId]);
 
-    // Lightweight polling to reflect updates without manual refresh
-    useEffect(() => {
-        if (!projectId) return;
-        const intervalId = setInterval(() => {
-            fetchTasks();
-        }, 10000);
-        return () => clearInterval(intervalId);
-    }, [projectId]);
-
     const fetchTasks = async () => {
         try {
             setLoading(true);
-            const data = await taskService.getTasksByProjectId(projectId);
-            setTasks(data);
+            const response = await axios.get(`${API_BASE}/api/tasks?projectId=${projectId}`);
+            setTasks(response.data);
             setError(null);
         } catch (err) {
             setError('Failed to fetch tasks');
@@ -66,8 +46,7 @@ const TaskList = ({ projectId }) => {
                 projectId,
                 createdAt: new Date().toISOString()
             });
-            // Fetch canonical data to avoid any drift
-            await fetchTasks();
+            setTasks([...tasks, response.data]);
             setNewTask({
                 title: '',
                 description: '',
@@ -84,7 +63,7 @@ const TaskList = ({ projectId }) => {
     const handleUpdateTask = async (taskId, updatedData) => {
         try {
             const response = await axios.put(`${API_BASE}/api/tasks/${taskId}`, updatedData);
-            setTasks(tasks.map(task => task.id === taskId ? mergePreserveDefined(task, response.data) : task));
+            setTasks(tasks.map(task => task.id === taskId ? { ...task, ...response.data } : task));
             toast.success('Task updated successfully!');
         } catch (err) {
             setError('Failed to update task');
@@ -113,14 +92,13 @@ const TaskList = ({ projectId }) => {
     };
 
     const handleStatusChange = async (taskId, newStatus) => {
-        const previousTasks = tasks;
-        // Optimistic UI update
-        setTasks(tasks.map(task => (task.id === taskId ? { ...task, status: newStatus } : task)));
         try {
-            await taskService.updateTaskStatus(taskId, newStatus);
+            const task = tasks.find(t => t.id === taskId);
+            if (task) {
+                // FIX: Correctly merge the updated status with the existing task object
+                await handleUpdateTask(taskId, { ...task, status: newStatus });
+            }
         } catch (err) {
-            // Rollback on failure
-            setTasks(previousTasks);
             setError('Failed to update task status');
             console.error('Error updating task status:', err);
         }

@@ -27,19 +27,6 @@ const ProjectDashboard = () => {
         fetchProjectData();
     }, [projectId]);
 
-    // Auto-refresh tasks every 10s
-    useEffect(() => {
-        const id = setInterval(async () => {
-            try {
-                const tasksResponse = await axios.get(`${API_BASE}/api/projects/${projectId}/tasks`);
-                setTasks(tasksResponse.data);
-            } catch (err) {
-                // ignore polling errors silently
-            }
-        }, 10000);
-        return () => clearInterval(id);
-    }, [projectId]);
-
     const fetchProjectData = async () => {
         try {
             setLoading(true);
