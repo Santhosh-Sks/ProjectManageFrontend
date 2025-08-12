@@ -80,7 +80,7 @@ const TaskList = ({ projectId }) => {
         try {
             const task = tasks.find(t => t.id === taskId);
             if (task) {
-                await handleUpdateTask(taskId, { ...task, status: newStatus });
+                await handleUpdateTask(taskId, {task, status: newStatus });
             }
         } catch (err) {
             setError('Failed to update task status');
