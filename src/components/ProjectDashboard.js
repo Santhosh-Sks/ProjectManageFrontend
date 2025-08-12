@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import axios from 'axios';
+import { taskService } from '../services/taskService';
 import { FaTasks, FaUsers, FaEnvelope, FaPlus } from 'react-icons/fa';
 
 const API_BASE = process.env.REACT_APP_API_URL;
@@ -82,10 +83,8 @@ const ProjectDashboard = () => {
 
     const handleTaskStatusChange = async (taskId, newStatus) => {
         try {
-            await axios.patch(`${API_BASE}/api/tasks/${taskId}`, { status: newStatus });
-            setTasks(tasks.map(task =>
-                task.id === taskId ? { ...task, status: newStatus } : task
-            ));
+            await taskService.updateTaskStatus(taskId, newStatus);
+            setTasks(tasks.map(task => (task.id === taskId ? { ...task, status: newStatus } : task)));
         } catch (err) {
             setError('Failed to update task status');
             console.error('Error updating task status:', err);

@@ -63,7 +63,7 @@ const TaskList = ({ projectId }) => {
     const handleUpdateTask = async (taskId, updatedData) => {
         try {
             const response = await axios.put(`${API_BASE}/api/tasks/${taskId}`, updatedData);
-            setTasks(tasks.map(task => task.id === taskId ? response.data : task));
+            setTasks(tasks.map(task => task.id === taskId ? { ...task, ...response.data } : task));
             toast.success('Task updated successfully!');
         } catch (err) {
             setError('Failed to update task');

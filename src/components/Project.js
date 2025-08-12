@@ -90,15 +90,8 @@ const Project = () => {
 
     const handleUpdateTaskStatus = async (taskId, newStatus) => {
         try {
-            const task = tasks.find(t => t.id === taskId);
-            if (task) {
-                await taskService.updateTask(taskId, {
-                    ...task,
-                    status: newStatus,
-                    updatedAt: new Date()
-                });
-                loadTasks();
-            }
+            await taskService.updateTaskStatus(taskId, newStatus);
+            loadTasks();
         } catch (error) {
             console.error('Error updating task status:', error);
         }
